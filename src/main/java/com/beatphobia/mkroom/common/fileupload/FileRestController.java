@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -12,30 +13,30 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import lombok.extern.log4j.Log4j;
 import net.coobird.thumbnailator.Thumbnailator;
 
-@Controller
+@RestController
+@RequestMapping("/files")
 @Log4j
-public class FileUploadAjaxController {
+public class FileRestController {
+	
 	
 	private String uploadFileRepoDir = "C:/myupload" ;
 	
-	@GetMapping(value="/fileUploadAjax")
-	public String callFileUploadFormPage() {
-		return "sample/fileUploadAjax" ;
-		
-	}
 	
 	private String getDatePathName() {
 		
@@ -48,7 +49,6 @@ public class FileUploadAjaxController {
 		return strDatePathName ;
 	}
 	
-	//추가고려사항 4: 업로드 파일의 이미지파일 유무 확인 메서드
 	private boolean checkIsImageForUploadFile(File uploadFile) {
 		
 		try {
@@ -65,7 +65,6 @@ public class FileUploadAjaxController {
 	
 	
 	@PostMapping(value = "/fileUploadAjaxAction", produces = {"application/json; charset=utf-8"})
-	@ResponseBody
 	public ResponseEntity<List<AttachFileDTO>> fileUploadActionPost(MultipartFile[] uploadFiles) {
 		
 		List<AttachFileDTO> listAttachInfo = new ArrayList<AttachFileDTO>() ;
@@ -136,7 +135,6 @@ public class FileUploadAjaxController {
 	}
 	
 	@GetMapping("/displayThumbnail")
-	@ResponseBody
 	public ResponseEntity<byte[]> sendThumbNailFile(String fileName) {
 		
 		File file = new File(fileName) ;
@@ -159,7 +157,6 @@ public class FileUploadAjaxController {
 	}
 	
 	@PostMapping("/deleteUploadedFile")
-	@ResponseBody
 	public ResponseEntity<String> deleteFile(String fileName, String fileType) {
 		
 		File delFile = null ;
@@ -185,5 +182,66 @@ public class FileUploadAjaxController {
 		
 		return new ResponseEntity<String>("SuccessFileDelete", HttpStatus.OK) ;
 	}
+	
+	
+	@GetMapping(value="/fileDownloadAjax", produces = "application/octet-stream")
+	public ResponseEntity<Resource> fileDownloadActionAjax(@RequestHeader("User-Agent") String userAgent, 
+														   String fileName){
+		System.out.println(">>>123");
+		//log.info("브라우저로 요청에서 전달된 User-Agent 해더정보: "+ userAgent);
+		//log.info("처리 전 파일이름: " + fileName);
+		
+		Resource resource = new FileSystemResource(fileName);
+		//log.info("resource :" + resource);
+		
+		if(!resource.exists()) {
+			return new ResponseEntity<Resource>(HttpStatus.NOT_FOUND) ;
+			
+		} 
+		
+		String resourceFileName = resource.getFilename() ;
+		//log.info("UUID 제거 전 resourceFileName :" + resourceFileName);
+		
+		//UUID가 제거된 파일이름
+		resourceFileName = resourceFileName.substring(resourceFileName.indexOf("_") + 1) ;
+		//log.info("UUID 제거 후 resourceFileName :" + resourceFileName);
+		
+		HttpHeaders httpHeaders = new HttpHeaders() ;
+		
+		String downloadFileName  = null ;
+		
+		if ( userAgent.contains("Trident") || userAgent.contains("MSIE") ||
+				userAgent.contains("Edge") || userAgent.contains("Edg")) {
+			
+			//downloadFileName = resourceFileName ;
+			
+			try {
+				downloadFileName = URLEncoder.encode(resourceFileName, "utf-8");
 
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+			//log.info("downloadFileName: " + downloadFileName) ;
+			
+			
+		} else { 
+			
+			try {
+				downloadFileName = new String(resourceFileName.getBytes("utf-8"), "ISO-8859-1") ;
+				//log.info("Chrome에서의 파일이름: "+ downloadFileName);
+			
+				
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		
+		httpHeaders.add("Content-Disposition", "attachment; filename=" + downloadFileName) ;
+		
+		
+		
+		return new ResponseEntity<Resource>(resource, httpHeaders, HttpStatus.OK) ;
+	}
 }

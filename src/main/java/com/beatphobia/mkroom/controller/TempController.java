@@ -16,8 +16,5 @@ public class TempController {
 		
 	}
 	
-	@GetMapping("/fileupload")
-	public void showFileUpload() {
-		
-	}
+
 }

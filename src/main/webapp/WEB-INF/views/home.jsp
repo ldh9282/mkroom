@@ -13,6 +13,6 @@
 
 <a href="${pageContext.request.contextPath }/onepage">OnePage-index.html</a>
 <a href="${pageContext.request.contextPath }/niceadmin">niceadmin-index.html</a>
-<a href="${pageContext.request.contextPath }/fileupload">fileupload</a>
+<a href="${pageContext.request.contextPath }/files/upload">upload + download</a>
 </body>
 </html>
